@@ -1,0 +1,148 @@
+---
+title: "Writeup"
+author: "Juan Antonio Quiñones Sánchez"
+date: "Sunday, July 26, 2015"
+output: html_document
+---
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+## Data cleaning
+
+The training data for this project are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.
+
+```{r, warning=FALSE, message=FALSE}
+library (ggplot2)
+library (caret)
+library (randomForest)
+library (gbm)
+library (MASS)
+library (rpart)
+library (ipred)
+library (plyr)
+library (klaR)
+
+set.seed(100)
+
+## Load train and test data
+pmlTrain <- read.csv("pml-training.csv")
+pmlTest <- read.csv("pml-testing.csv")
+```
+
+There are `r dim(pmlTrain)[2]` variables in pmlTrain. I'm going to remove all variables that more of 50% of data have NAs or "".
+
+```{r}
+## Identify variables with more than 50% NA or "" data
+removeVariables <- apply(pmlTrain, 2, function(x) sum(is.na(x)) > dim(pmlTrain)[1]/2  || sum(x=="") > dim(pmlTrain)[1]/2)
+
+## Remove variables
+pmlTrain <- pmlTrain[,!removeVariables]
+pmlTrain <- pmlTrain[,-1]
+
+summary(pmlTrain)
+```
+
+
+## Partition pmlTraining in train and test data
+
+I'm going to make two randomize parts of pmlTrain. Training with 20% of data and test with 80%. (My computer don´t have enough memory to use more data)
+
+``` {r}
+inTrain<-createDataPartition(y=pmlTrain$classe, p=0.2,list=F)
+training<-pmlTrain[inTrain,] 
+test<-pmlTrain[-inTrain,]
+
+dim(training); dim(test)
+```
+
+
+## Make models
+
+I'm going to try five models:
+- random forest
+- boosting
+- linear discrimant analysis
+- tree model
+- bagging model
+
+```{r, warning=FALSE}
+##mod1 <- train(classe ~ ., data=training, method="rf", prox=TRUE)
+mod2 <- train(classe ~ ., data=training, method="gbm", verbose=FALSE)
+##mod3 <- train(classe ~ ., data=training, method="lda")
+##mod4 <- train(classe ~ ., data=training, method="rpart")
+##mod5 <- train(classe ~ ., data=training, method="treebag")
+```
+
+I'm going to try models in test data.
+
+```{r}
+##pred1 <- predict(mod1, newdata=test)
+pred2 <- predict(mod2, newdata=test)
+##pred3 <- predict(mod3, newdata=test)
+##pred4 <- predict(mod4, newdata=test)
+##pred5 <- predict(mod5, newdata=test)
+```
+
+Confussions matrix of models are:
+
+```{r}
+##cm1 <- confusionMatrix(pred1, test$classe)
+cm2 <- confusionMatrix(pred2, test$classe)
+##cm3 <- confusionMatrix(pred3, test$classe)
+##cm4 <- confusionMatrix(pred4, test$classe)
+##cm5 <- confusionMatrix(pred5, test$classe)
+```
+
+The model elected will be which have tha maximum accuracy and kappa.
+
+```{r}
+##accuracy <- c(cm1$overall[[1]], cm2$overall[[1]], cm3$overall[[1]], cm4$overall[[1]], cm5$overall[[1]])
+##kappa <- c(cm1$overall[[2]], cm2$overall[[2]], cm3$overall[[2]], cm4$overall[[2]], cm5$overall[[2]])
+
+##data.frame(accuracy,kappa)
+
+```
+
+
+## Conclussions
+
+
+```{r}
+cm2
+```
+
+Boosting is the best model with Accuracy: `r cm2$overall[[1]]` and Kappa `r cm2$overall[[2]]`.
+
+## Prepare the submission
+
+```{r}
+answers<-predict(mod2, newdata=pmlTest)
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(answers)
+```
+
+
+
+
+
+
+
